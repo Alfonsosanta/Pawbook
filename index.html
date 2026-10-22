@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pawbook - The Social Network for Pets</title>
+
+  <!-- Open Graph Meta Tags for Social Link Previews -->
+  <meta property="og:title" content="Pawbook - Watch Pet Zoomies & Find Local Parks!">
+  <meta property="og:description" content="Connect with local pets, discover nearby parks, and share zoomies. Download Pawbook today!">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1552053831-71594a27632d?w=600&auto=format&fit=crop&q=80">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- AUTH / LANDING VIEW -->
+  <div id="authView" class="auth-wrapper">
+    <div class="card auth-card">
+      <div class="brand-logo-center">
+        <i data-lucide="paw-print"></i>
+        <h1>PawBook</h1>
+        <p data-i18n="tagline">Where pets make pals, share zoomies, and get boops.</p>
+      </div>
+
+      <!-- AUTH TAB TOGGLES -->
+      <div class="auth-tabs" id="authTabHeader">
+        <button id="signInTabBtn" class="auth-tab-btn active" onclick="switchAuthForm('signin')">Sign In</button>
+        <button id="registerTabBtn" class="auth-tab-btn" onclick="switchAuthForm('register')">Register Pet</button>
+      </div>
+
+      <!-- SIGN IN FORM -->
+      <form id="signInForm" onsubmit="event.preventDefault(); enterApp();">
+        <div class="input-group">
+          <label>PET HANDLE OR EMAIL</label>
+          <input type="text" placeholder="@luna_golden or owner@email.com" required>
+        </div>
+        <div class="input-group password-wrapper">
+          <label>PASSWORD</label>
+          <div class="password-input-container">
+            <input type="password" id="signInPassword" placeholder="••••••••" required>
+            <i data-lucide="eye" class="password-toggle-icon" onclick="togglePasswordVisibility('signInPassword', this)"></i>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary full-width">Paws In (Sign In)</button>
+      </form>
+
+      <!-- STEP 1: REGISTER PET PROFILE FORM -->
+      <form id="registerPetStep1Form" class="hidden" onsubmit="handleRegisterStep1(event)">
+        <h4 style="font-family: 'Fredoka', cursive; font-size: 16px; margin-bottom: 12px;">Step 1: Pet Profile Details</h4>
+        
+        <div class="input-group">
+          <label>UPLOAD PET PICTURE (Required) *</label>
+          <input type="file" id="regPetPhotoInput" accept="image/*" required onchange="previewRegisterPhoto(event)">
+          <div id="regPhotoPreviewContainer" class="hidden" style="margin-top: 8px; text-align: center;">
+            <img id="regPhotoPreviewImg" src="" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>PET NAME *</label>
+          <input type="text" id="regPetName" placeholder="e.g., Barnaby, Luna" required>
+        </div>
+
+        <div class="input-group">
+          <label>PET SPECIES / BREED *</label>
+          <select id="regPetSpecies" class="chip-select" style="width: 100%; padding: 10px;">
+            <option value="Dog">🐶 Dog</option>
+            <option value="Cat">🐱 Cat</option>
+            <option value="Bird">🦜 Bird</option>
+            <option value="Other">🐾 Other Furry Friend</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label>BREED DETAILS *</label>
+          <input type="text" id="regPetBreed" placeholder="e.g., Golden Retriever, Tuxedo Cat" required>
+        </div>
+
+        <div class="input-group">
+          <label>SHORT BIO *</label>
+          <input type="text" id="regPetBio" placeholder="e.g., Professional treat enthusiast" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary full-width">Next: Owner Email ➔</button>
+      </form>
+
+      <!-- STEP 2: EMAIL AUTHENTICATION FORM -->
+      <form id="registerEmailStepForm" class="hidden" onsubmit="handleSendEmailVerification(event)">
+        <h4 style="font-family: 'Fredoka', cursive; font-size: 16px; margin-bottom: 12px;">Step 2: Owner Email Authentication</h4>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">We'll send an authentication link to confirm your account.</p>
+        
+        <div class="input-group">
+          <label>OWNER EMAIL ADDRESS *</label>
+          <input type="email" id="regOwnerEmail" placeholder="yourname@gmail.com" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary full-width">Send Verification Link ✉️</button>
+      </form>
+
+      <!-- STEP 3: EMAIL SENT WAITING SCREEN -->
+      <div id="emailVerificationPendingScreen" class="hidden" style="text-align: center; padding: 16px 0;">
+        <i data-lucide="mail-check" style="width: 48px; height: 48px; color: var(--primary); margin-bottom: 8px;"></i>
+        <h3 style="font-family: 'Fredoka', cursive; font-size: 18px;">Check Your Inbox!</h3>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 8px 0 16px 0;">
+          An authentication link was sent to <strong id="pendingEmailDisplay"></strong>.
+        </p>
+        <button class="btn btn-outline full-width" onclick="simulateClickEmailVerificationLink()">
+          ✨ (Simulate) Click Email Verification Link
+        </button>
+      </div>
+
+      <!-- STEP 4: CREATE PASSWORD FORM (EXACTLY 8 CHARS, 1 UPPERCASE, 1 SPECIAL) -->
+      <form id="registerPasswordStepForm" class="hidden" onsubmit="handleCompleteRegistration(event)">
+        <div class="verified-banner" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 10px; border-radius: 12px; font-size: 12px; margin-bottom: 14px; font-weight: 600;">
+          ✓ Email Authenticated! "All good, you may now return to Pawbook."
+        </div>
+
+        <h4 style="font-family: 'Fredoka', cursive; font-size: 16px; margin-bottom: 8px;">Step 3: Create Secure Password</h4>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Must be <strong>exactly 8 characters</strong> long, contain at least <strong>1 uppercase letter</strong> and <strong>1 special character</strong>.</p>
+
+        <div class="input-group password-wrapper">
+          <label>CREATE PASSWORD *</label>
+          <div class="password-input-container">
+            <input type="password" id="regPassword" placeholder="e.g., Pawbook!" required oninput="validatePasswordStrength()">
+            <i data-lucide="eye" class="password-toggle-icon" onclick="togglePasswordVisibility('regPassword', this)"></i>
+          </div>
+          <span id="passwordRuleError" style="font-size: 11px; color: #ef4444; display: block; margin-top: 4px;"></span>
+        </div>
+
+        <div class="input-group password-wrapper">
+          <label>CONFIRM PASSWORD *</label>
+          <div class="password-input-container">
+            <input type="password" id="regConfirmPassword" placeholder="e.g., Pawbook!" required oninput="validatePasswordStrength()">
+            <i data-lucide="eye" class="password-toggle-icon" onclick="togglePasswordVisibility('regConfirmPassword', this)"></i>
+          </div>
+          <span id="passwordMatchError" style="font-size: 11px; color: #ef4444; display: block; margin-top: 4px;"></span>
+        </div>
+
+        <button type="submit" id="completeRegBtn" class="btn btn-primary full-width" disabled>Finish & Enter Pawbook 🐾</button>
+      </form>
+
+      <div class="divider">OR</div>
+
+      <button class="btn btn-secondary full-width" onclick="enterApp()">
+        ✨ Explore Demo Mode (No Login Required)
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN APP DASHBOARD VIEW -->
+  <div id="appView" class="app-layout hidden">
+
+    <!-- Top Navigation -->
+    <header class="navbar">
+      <div class="nav-left">
+        <div class="logo">
+          <i data-lucide="paw-print"></i>
+          <span>Pawbook</span>
+        </div>
+        
+        <!-- INTERACTIVE SEARCH BAR -->
+        <div class="search-wrapper">
+          <div class="search-bar">
+            <i data-lucide="search"></i>
+            <input type="text" id="globalSearchInput" placeholder="Search pets, handles, or breeds..." oninput="handleSearch(this.value)">
+          </div>
+          <div id="searchResultsDropdown" class="search-results-dropdown hidden"></div>
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <button class="nav-tab active" onclick="switchMainTab('feed')"><i data-lucide="home"></i> <span data-i18n="navFeed">Feed</span></button>
+        <button class="nav-tab" onclick="switchMainTab('parks')"><i data-lucide="map-pin"></i> <span data-i18n="navParks">Parks Near Me</span></button>
+      </div>
+
+      <div class="nav-right">
+        <!-- NOTIFICATIONS BUTTON -->
+        <div class="notifications-wrapper">
+          <button class="icon-btn" id="notifBtn" title="Notifications" onclick="toggleNotifications(event)">
+            <i data-lucide="bell"></i>
+            <span id="notifBadge" class="badge">1</span>
+          </button>
+          
+          <div id="notifDropdown" class="notif-dropdown hidden">
+            <div class="notif-header">
+              <h4 data-i18n="notifHeader">Notifications</h4>
+              <span style="font-size: 11px; color: var(--primary); cursor: pointer;" onclick="markNotificationsRead()">Mark all read</span>
+            </div>
+            <div class="notif-list" id="notifListContainer"></div>
+          </div>
+        </div>
+
+        <!-- PROFILE SETTINGS BADGE & DROPDOWN MENU -->
+        <div class="profile-settings-wrapper">
+          <div class="current-pet-badge" onclick="toggleProfileMenu()">
+            <div class="avatar-container-nav">
+              <img id="navAvatar" src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=100&auto=format&fit=crop&q=80" alt="Luna" onerror="handleImageError(this)">
+              <div id="navBirthdayHat" class="birthday-hat hidden">🎉</div>
+            </div>
+            <span id="navPetName">Luna</span>
+            <span id="navVerifiedBadge" class="verified-badge hidden" title="Verified Influencer">🍬</span>
+            <i data-lucide="chevron-down" style="width: 14px; height: 14px; margin-left: 2px;"></i>
+          </div>
+
+          <!-- PROFILE SETTINGS MENU -->
+          <div id="profileMenuDropdown" class="profile-menu-dropdown hidden">
+            <div class="profile-menu-header">
+              <strong id="menuPetName">Luna the Golden</strong>
+              <span id="menuPetStatus" style="font-size: 11px; color: #10b981;">● Active</span>
+            </div>
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 6px 0;">
+            
+            <button class="menu-action-btn" onclick="openEditProfileModal()">
+              <i data-lucide="settings"></i> Edit Profile
+            </button>
+
+            <button class="menu-action-btn" onclick="openShareProfileModal()">
+              <i data-lucide="share-2"></i> Share Profile Link
+            </button>
+
+            <button class="menu-action-btn" onclick="toggleDarkMode()">
+              <i data-lucide="moon"></i> <span id="darkModeBtnText">Dark Mode</span>
+            </button>
+
+            <div style="padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; font-size: 13px;">
+              <span style="display: flex; align-items: center; gap: 8px;"><i data-lucide="globe" style="width: 16px; height: 16px;"></i> Language</span>
+              <select id="languageSelect" class="chip-select" style="padding: 4px 8px; font-size: 12px;" onchange="changeLanguage(this.value)">
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+              </select>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 6px 0;">
+
+            <button class="menu-action-btn" onclick="triggerEditAvatar()">
+              <i data-lucide="camera"></i> Edit Profile Picture
+            </button>
+            <input type="file" id="avatarFileInput" hidden accept="image/*" onchange="uploadProfileAvatar(event)">
+
+            <button class="menu-action-btn" onclick="switchAccounts()">
+              <i data-lucide="users"></i> Change Accounts
+            </button>
+
+            <button class="menu-action-btn" onclick="toggleHideAccount()">
+              <i data-lucide="eye-off"></i> <span id="hideAccText">Hide Account (Private)</span>
+            </button>
+
+            <button class="menu-action-btn danger" onclick="deleteAccount()">
+              <i data-lucide="trash-2"></i> Delete Account
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- MAIN 3-COLUMN GRID -->
+    <main class="main-content">
+      <!-- Left Sidebar -->
+      <aside class="sidebar-left">
+        <div class="card profile-card">
+          <div class="profile-avatar-wrapper">
+            <img id="sidebarAvatar" src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=200&auto=format&fit=crop&q=80" class="profile-avatar" alt="Luna" onerror="handleImageError(this)">
+            <div id="sidebarBirthdayHat" class="birthday-hat-large hidden">🎉</div>
+          </div>
+          <h2 id="sidebarPetName">Luna the Golden <span id="sidebarVerifiedBadge" class="verified-badge hidden" title="Verified Influencer">🍬</span></h2>
+          <p id="sidebarBreed" class="breed-tag">Golden Retriever • <span id="sidebarGender">Female</span></p>
+          
+          <div class="profile-status-picker">
+            <label style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;" data-i18n="moodLabel">CURRENT MOOD / STATUS</label>
+            <select id="profileStatusSelect" class="chip-select full-width" onchange="updateProfileStatus(this.value)">
+              <option value="🐾 Zoomies">🐾 Zoomies</option>
+              <option value="😴 Napping">😴 Napping</option>
+              <option value="🎾 Fetch">🎾 Fetch</option>
+              <option value="🦴 Treat Time">🦴 Treat Time</option>
+            </select>
+          </div>
+
+          <p id="sidebarBio" class="bio" style="margin-top: 12px;">Professional ball retriever, lake swimmer, and treat enthusiast.</p>
+          <div id="sidebarLinks" style="font-size: 12px; margin-bottom: 12px; color: var(--primary-hover);"></div>
+
+          <div class="profile-stats">
+            <div><strong id="statPalsVal">0</strong><span data-i18n="statPals">Pals</span></div>
+            <div><strong id="statPawstsVal">0</strong><span data-i18n="statPawsts">Pawsts</span></div>
+            <div><strong id="statBoopsVal">0</strong><span data-i18n="statBoops">Boops</span></div>
+          </div>
+        </div>
+
+        <div class="card nav-menu">
+          <a href="#" id="menuFeed" class="menu-item active" onclick="switchMainTab('feed')"><i data-lucide="newspaper"></i> <span data-i18n="navFeed">Main Feed</span></a>
+          <a href="#" id="menuParks" class="menu-item" onclick="switchMainTab('parks')"><i data-lucide="map-pin"></i> <span data-i18n="navParks">Parks Near Me</span></a>
+          <a href="#" id="menuPack" class="menu-item" onclick="switchMainTab('pack')"><i data-lucide="users"></i> <span>My Pack</span></a>
+        </div>
+      </aside>
+
+      <!-- Center Content Area -->
+      <section class="feed-container">
+        
+        <!-- VIEW 1: MAIN FEED -->
+        <div id="feedViewTab">
+          <div class="card create-post-card">
+            <div class="composer-top">
+              <img id="composerAvatar" src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=100&auto=format&fit=crop&q=80" class="mini-avatar" alt="Pet Avatar" onerror="handleImageError(this)">
+              <input type="text" id="postCaptionInput" placeholder="What's your pet up to? (Photos or max 10s videos)...">
+            </div>
+            <div class="composer-actions">
+              <div class="action-buttons">
+                <label class="chip-btn"><i data-lucide="video"></i> Media (Pic/Video <10s) <input type="file" hidden accept="image/*,video/*" onchange="handleMediaSelect(event)"></label>
+                <select id="activitySelect" class="chip-select">
+                  <option value="🐾 Zoomies">🐾 Zoomies</option>
+                  <option value="😴 Napping">😴 Napping</option>
+                  <option value="🎾 Fetch">🎾 Fetch</option>
+                  <option value="🦴 Treat Time">🦴 Treat Time</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="publishPost()" data-i18n="postBtn">Post Pawst</button>
+            </div>
+            <div id="mediaPreviewName" style="font-size: 11px; color: var(--primary); margin-top: 6px;"></div>
+          </div>
+
+          <div class="species-filters">
+            <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); align-self: center; margin-right: 4px;" data-i18n="filterLabel">Filter Feed:</span>
+            <button class="filter-chip active" onclick="filterSpecies('All')">All Pets</button>
+            <button class="filter-chip" onclick="filterSpecies('Dog')">🐶 Dogs</button>
+            <button class="filter-chip" onclick="filterSpecies('Cat')">🐱 Cats</button>
+            <button class="filter-chip" onclick="filterSpecies('Bird')">🦜 Birds</button>
+          </div>
+
+          <div id="postsFeed"></div>
+        </div>
+
+        <!-- VIEW 2: PARKS NEAR ME TAB -->
+        <div id="parksViewTab" class="hidden">
+          <div class="card playdate-header-card">
+            <div class="playdate-header-text">
+              <h2 data-i18n="parksTitle">Parks Near Me 🐾</h2>
+              <p data-i18n="parksSub">Find local dog parks, running spots, and open lawns for your furry pals!</p>
+            </div>
+          </div>
+
+          <div class="card map-card">
+            <h3><i data-lucide="map-pin"></i> Active Parks Map</h3>
+            <div class="map-container">
+              <iframe 
+                width="100%" 
+                height="280" 
+                style="border:0; border-radius: 12px;" 
+                loading="lazy" 
+                allowfullscreen 
+                src="https://maps.google.com/maps?q=Norwalk%20Dog%20Park&t=&z=12&ie=UTF8&iwloc=&output=embed">
+              </iframe>
+            </div>
+          </div>
+
+          <div id="playdatesFeed"></div>
+        </div>
+
+        <!-- VIEW 3: MY PACK TAB -->
+        <div id="packViewTab" class="hidden">
+          <div class="card playdate-header-card">
+            <div class="playdate-header-text">
+              <h2>My Pack 🐾</h2>
+              <p>Your connected pet pals and active friends network.</p>
+            </div>
+          </div>
+          <div id="myPackContainer"></div>
+        </div>
+
+      </section>
+
+      <!-- Right Sidebar -->
+      <aside class="sidebar-right">
+        <!-- SUGGESTED PET PALS BASED ON ALGORITHM -->
+        <div class="card suggestions-card">
+          <h3>Suggested Pet Pals <span style="font-size: 10px; color: var(--primary); font-weight: normal;">• Local Matches</span></h3>
+          <div id="suggestedPalsList"></div>
+        </div>
+
+        <!-- INQUIRY TAB -->
+        <div class="card inquiry-card">
+          <h3><i data-lucide="help-circle"></i> Need Help or Suggestions?</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Have feedback or questions about Pawbook? Reach out directly!</p>
+          <button class="btn btn-secondary full-width" onclick="openContactEmailApp()">
+            ✉️ Contact Pawbook
+          </button>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- EDIT PROFILE MODAL -->
+  <div id="editProfileModal" class="modal-overlay hidden" onclick="if(event.target === this) closeEditProfileModal();">
+    <div class="card modal-card">
+      <div class="modal-header">
+        <h3>Edit Profile 🐾</h3>
+        <button class="icon-btn" onclick="closeEditProfileModal()">✕</button>
+      </div>
+      <div class="input-group">
+        <label>PET NAME</label>
+        <input type="text" id="editProfileName">
+      </div>
+      <div class="input-group">
+        <label>USERNAME / HANDLE (Permanent)</label>
+        <input type="text" id="editProfileHandle" readonly style="background: #f1f5f9; cursor: not-allowed;">
+      </div>
+      <div class="input-group">
+        <label>BIO</label>
+        <input type="text" id="editProfileBio">
+      </div>
+      <div class="input-group">
+        <label>EXTERNAL LINKS (Website / IG)</label>
+        <input type="text" id="editProfileLinks" placeholder="https://instagram.com/luna">
+      </div>
+      <div class="input-group">
+        <label>GENDER</label>
+        <select id="editProfileGender" class="chip-select" style="width: 100%; padding: 10px;">
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>PET BIRTHDATE</label>
+        <input type="date" id="editProfileBirthday">
+      </div>
+      <div class="input-group" style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 10px 14px; border-radius: 10px;">
+        <div>
+          <strong>Pet Influencer Status</strong>
+          <span style="display: block; font-size: 11px; color: var(--text-muted);">Receive verified peppermint checkmark 🍬</span>
+        </div>
+        <input type="checkbox" id="editProfileInfluencer" style="width: 20px; height: 20px; accent-color: var(--primary);">
+      </div>
+      <button class="btn btn-primary full-width" style="margin-top: 16px;" onclick="saveProfileEdits()">Save Changes 🐾</button>
+    </div>
+  </div>
+
+  <!-- SHARE PROFILE MODAL -->
+  <div id="shareProfileModal" class="modal-overlay hidden" onclick="if(event.target === this) closeShareProfileModal();">
+    <div class="card modal-card">
+      <div class="modal-header">
+        <h3>Share Profile 🐾</h3>
+        <button class="icon-btn" onclick="closeShareProfileModal()">✕</button>
+      </div>
+      <div class="share-preview-box">
+        <div class="share-banner-top">Pawbook Pet Profile</div>
+        <h4 id="shareProfileHeadline" class="share-headline">Check out Luna on Pawbook! 🐾</h4>
+        <p style="font-size: 12px; color: var(--text-muted);">"Connect with local pet pals and follow our daily adventures."</p>
+      </div>
+      <div class="share-link-input">
+        <input type="text" id="shareProfileLinkInput" readonly value="">
+        <button class="btn btn-primary btn-sm" onclick="copyShareProfileLink()">Copy Link 📋</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PUBLIC PET PROFILE MODAL -->
+  <div id="petProfileModal" class="modal-overlay hidden" onclick="if(event.target === this) closePetProfileModal();">
+    <div class="card modal-card profile-modal-card">
+      <div class="modal-header">
+        <h3 id="modalPetTitle" style="font-family: 'Fredoka', cursive;">Pet Profile</h3>
+        <button class="icon-btn" onclick="closePetProfileModal()">✕</button>
+      </div>
+      <div class="pet-profile-modal-body">
+        <div class="pet-modal-top">
+          <img id="modalPetAvatar" src="" class="profile-avatar modal-avatar-shadow" alt="Pet Avatar" onerror="handleImageError(this)">
+          <h2 id="modalPetName" style="font-family: 'Fredoka', cursive; font-size: 22px; margin-top: 6px;"></h2>
+          <p id="modalPetHandle" class="breed-tag" style="font-weight: 600; color: var(--primary-hover); margin-bottom: 6px;"></p>
+          <p id="modalPetBio" class="bio" style="max-width: 320px; font-size: 13.5px; margin-bottom: 12px;"></p>
+          <div id="modalPetLinks" style="font-size: 12px; margin-bottom: 8px;"></div>
+          
+          <div class="pet-modal-meta">
+            <span id="modalPetBreed"></span> • <span id="modalPetCity"></span>
+          </div>
+
+          <div id="modalFriendActionWrapper" style="margin-top: 14px;"></div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0 16px 0;">
+        <h4 style="font-family: 'Fredoka', cursive; font-size: 16px; margin-bottom: 12px; text-align: left;">Recent Pawsts 🐾</h4>
+        <div id="modalPetPostsContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARE PREVIEW MODAL -->
+  <div id="shareModal" class="modal-overlay hidden" onclick="if(event.target === this) closeShareModal();">
+    <div class="card modal-card">
+      <div class="modal-header">
+        <h3>Share Pawst 🐾</h3>
+        <button class="icon-btn" onclick="closeShareModal()">✕</button>
+      </div>
+      <div class="share-preview-box">
+        <div class="share-banner-top">Pawbook Preview • Download Today</div>
+        <div id="shareModalMediaContainer"></div>
+        <h4 id="shareModalHeadline" class="share-headline">Watch Luna on Pawbook! 🐾</h4>
+        <p style="font-size: 12px; color: var(--text-muted);">"Join Pawbook today to meet local pet pals, discover nearby parks, and share zoomies!"</p>
+      </div>
+      <div class="share-link-input">
+        <input type="text" id="shareLinkInput" readonly value="https://alfonsosanta.github.io/Pawbook/?ref=luna">
+        <button class="btn btn-primary btn-sm" onclick="copyShareLink()">Copy Link 📋</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
