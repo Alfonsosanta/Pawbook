@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pawbook - The Social Network for Pets</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- AUTH / LANDING VIEW -->
+  <div id="authView" class="auth-wrapper">
+    <div class="card auth-card">
+      <div class="brand-logo-center">
+        <i data-lucide="paw-print"></i>
+        <h1>PawBook</h1>
+        <p>Where pets make pals, share zoomies, and get boops.</p>
+      </div>
+
+      <!-- AUTH TAB TOGGLES -->
+      <div class="auth-tabs">
+        <button id="signInTabBtn" class="auth-tab-btn active" onclick="switchAuthForm('signin')">Sign In</button>
+        <button id="registerTabBtn" class="auth-tab-btn" onclick="switchAuthForm('register')">Register Pet</button>
+      </div>
+
+      <!-- SIGN IN FORM -->
+      <form id="signInForm" onsubmit="event.preventDefault(); enterApp();">
+        <div class="input-group">
+          <label>PET HANDLE OR EMAIL</label>
+          <input type="text" placeholder="@luna_golden or owner@email.com" required>
+        </div>
+        <div class="input-group">
+          <label>PASSWORD</label>
+          <input type="password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary full-width">Paws In (Sign In)</button>
+      </form>
+
+      <!-- REGISTER PET FORM -->
+      <form id="registerPetForm" class="hidden" onsubmit="handleRegisterPet(event)">
+        <div class="input-group">
+          <label>PET NAME</label>
+          <input type="text" id="regPetName" placeholder="e.g., Barnaby, Luna" required>
+        </div>
+        <div class="input-group">
+          <label>PET SPECIES / BREED</label>
+          <select id="regPetSpecies" class="chip-select" style="width: 100%; padding: 10px;">
+            <option value="Dog">🐶 Dog</option>
+            <option value="Cat">🐱 Cat</option>
+            <option value="Bird">🦜 Bird</option>
+            <option value="Other">🐾 Other Furry Friend</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>BREED DETAILS</label>
+          <input type="text" id="regPetBreed" placeholder="e.g., Golden Retriever, Tuxedo Cat">
+        </div>
+        <div class="input-group">
+          <label>SHORT BIO</label>
+          <input type="text" id="regPetBio" placeholder="e.g., Professional treat enthusiast">
+        </div>
+        <button type="submit" class="btn btn-primary full-width">Create Pet Profile 🐾</button>
+      </form>
+
+      <div class="divider">OR</div>
+
+      <button class="btn btn-secondary full-width" onclick="enterApp()">
+        ✨ Explore Demo Mode (No Login Required)
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN APP DASHBOARD VIEW -->
+  <div id="appView" class="app-layout hidden">
+
+    <!-- Top Navigation -->
+    <header class="navbar">
+      <div class="nav-left">
+        <div class="logo">
+          <i data-lucide="paw-print"></i>
+          <span>Pawbook</span>
+        </div>
+        <div class="search-bar">
+          <i data-lucide="search"></i>
+          <input type="text" placeholder="Search pets, breeds, or playdates...">
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <button class="nav-tab active" onclick="switchMainTab('feed')"><i data-lucide="home"></i> Feed</button>
+        <button class="nav-tab" onclick="switchMainTab('playdates')"><i data-lucide="map-pin"></i> Playdates</button>
+        <button class="nav-tab" onclick="switchMainTab('rescues')"><i data-lucide="heart"></i> Rescues</button>
+      </div>
+
+      <div class="nav-right">
+        <button class="icon-btn" title="Notifications">
+          <i data-lucide="bell"></i>
+          <span class="badge">3</span>
+        </button>
+        <div class="current-pet-badge" onclick="exitToAuth()">
+          <img id="navAvatar" src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=100&auto=format&fit=crop&q=80" alt="Luna">
+          <span id="navPetName">Luna</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN 3-COLUMN GRID -->
+    <main class="main-content">
+      <!-- Left Sidebar -->
+      <aside class="sidebar-left">
+        <div class="card profile-card">
+          <img id="sidebarAvatar" src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=200&auto=format&fit=crop&q=80" class="profile-avatar" alt="Luna">
+          <h2 id="sidebarPetName">Luna the Golden</h2>
+          <p id="sidebarBreed" class="breed-tag">Golden Retriever</p>
+          <p id="sidebarBio" class="bio">Professional ball retriever, lake swimmer, and treat enthusiast.</p>
+          <div class="profile-stats">
+            <div><strong>142</strong><span>Pals</span></div>
+            <div><strong>38</strong><span>Pawsts</span></div>
+            <div><strong>1.2k</strong><span>Boops</span></div>
+          </div>
+        </div>
+
+        <div class="card nav-menu">
+          <a href="#" class="menu-item active" onclick="switchMainTab('feed')"><i data-lucide="newspaper"></i> Main Feed</a>
+          <a href="#" class="menu-item" onclick="switchMainTab('playdates')"><i data-lucide="map-pin"></i> Playdates & Parks</a>
+        </div>
+      </aside>
+
+      <!-- Center Feed Container -->
+      <section class="feed-container">
+        
+        <!-- VIEW 1: MAIN FEED -->
+        <div id="feedViewTab">
+          <!-- CREATE PAWST CARD -->
+          <div class="card create-post-card">
+            <div class="composer-top">
+              <img id="composerAvatar" src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=100&auto=format&fit=crop&q=80" class="mini-avatar" alt="Pet Avatar">
+              <input type="text" id="postCaptionInput" placeholder="What's your pet up to? (Zoomies, Nap time, Barks?)...">
+            </div>
+            <div class="composer-actions">
+              <div class="action-buttons">
+                <label class="chip-btn"><i data-lucide="image"></i> Photo/Video <input type="file" hidden accept="image/*" onchange="handleImageSelect(event)"></label>
+                <select id="activitySelect" class="chip-select">
+                  <option value="🐾 Zoomies">🐾 Zoomies</option>
+                  <option value="😴 Napping">😴 Napping</option>
+                  <option value="🎾 Fetch">🎾 Fetch</option>
+                  <option value="🦴 Treat Time">🦴 Treat Time</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="publishPost()">Post Pawst</button>
+            </div>
+          </div>
+
+          <!-- SPECIES FILTER TABS -->
+          <div class="species-filters">
+            <button class="filter-chip active" onclick="filterSpecies('All')">All Pets</button>
+            <button class="filter-chip" onclick="filterSpecies('Dog')">🐶 Dogs</button>
+            <button class="filter-chip" onclick="filterSpecies('Cat')">🐱 Cats</button>
+            <button class="filter-chip" onclick="filterSpecies('Bird')">🦜 Birds</button>
+          </div>
+
+          <!-- POSTS FEED CONTAINER -->
+          <div id="postsFeed"></div>
+        </div>
+
+        <!-- VIEW 2: PLAYDATES TAB -->
+        <div id="playdatesViewTab" class="hidden">
+          <div class="card playdate-header-card">
+            <div class="playdate-header-text">
+              <h2>Nearby Pet Meetups 🐾</h2>
+              <p>Find local dog parks and meet nearby furry pals!</p>
+            </div>
+          </div>
+
+          <!-- EMBEDDED MAP CARD -->
+          <div class="card map-card">
+            <h3><i data-lucide="map-pin"></i> Active Meetups Map</h3>
+            <div class="map-container">
+              <iframe 
+                width="100%" 
+                height="280" 
+                style="border:0; border-radius: 12px;" 
+                loading="lazy" 
+                allowfullscreen 
+                src="https://maps.google.com/maps?q=Norwalk%20Dog%20Park&t=&z=12&ie=UTF8&iwloc=&output=embed">
+              </iframe>
+            </div>
+          </div>
+
+          <!-- PLAYDATE EVENTS LIST -->
+          <div id="playdatesFeed"></div>
+        </div>
+
+        <!-- VIEW 3: RESCUES TAB -->
+        <div id="rescuesViewTab" class="hidden">
+          <div class="card rescue-header-card">
+            <div class="rescue-header-text">
+              <h2>Adoptable Pals & Fosters 🐾</h2>
+              <p>Meet lovely pets seeking forever homes and local rescue networks near you.</p>
+            </div>
+          </div>
+
+          <!-- RESCUES FEED CONTAINER -->
+          <div id="rescuesFeed"></div>
+        </div>
+
+      </section>
+
+      <!-- Right Sidebar -->
+      <aside class="sidebar-right">
+        <div class="card trending-card">
+          <h3>Trending Barks</h3>
+          <ul class="trending-list">
+            <li><strong>#CatnipCraze</strong><span>4.2k Pawsts</span></li>
+            <li><strong>#GoldenRetrieverEnergy</strong><span>3.1k Pawsts</span></li>
+            <li><strong>#TreatsNow</strong><span>2.8k Pawsts</span></li>
+            <li><strong>#BarkInThePark</strong><span>1.9k Pawsts</span></li>
+          </ul>
+        </div>
+
+        <div class="card suggestions-card">
+          <h3>Suggested Pet Pals</h3>
+          <div class="pal-item">
+            <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=80&auto=format&fit=crop&q=80" alt="Milo">
+            <div class="pal-info">
+              <strong>Milo</strong>
+              <span>Tuxedo Cat</span>
+            </div>
+            <button class="btn btn-outline btn-sm">+ Add</button>
+          </div>
+          <div class="pal-item">
+            <img src="https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=80&auto=format&fit=crop&q=80" alt="Rio">
+            <div class="pal-info">
+              <strong>Rio</strong>
+              <span>Macaw</span>
+            </div>
+            <button class="btn btn-outline btn-sm">+ Add</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
