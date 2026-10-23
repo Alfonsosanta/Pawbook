@@ -14,35 +14,7 @@ const auth = firebase.auth();
 
 const DEFAULT_PET_IMG = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&auto=format&fit=crop&q=80";
 
-function playCricketChirpSound() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    function chirp(delay) {
-      setTimeout(() => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(4500, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(4800, ctx.currentTime + 0.04);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.04);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.04);
-      }, delay);
-    }
-
-    chirp(0);
-    chirp(60);
-    chirp(120);
-  } catch (e) {
-    console.log("Audio Context not allowed without interaction", e);
-  }
-}
-
-// STRICT PET / ANIMAL IMAGE DETECTOR
+// RELAXED PET IMAGE RECOGNITION (~25% THRESHOLD)
 function validateIsPetImage(file, callback) {
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -58,39 +30,27 @@ function validateIsPetImage(file, callback) {
       let humanSkinPixels = 0;
       let monotoneOrLandscapePixels = 0;
       let totalPixels = 64 * 64;
-      let colorBins = {};
 
       for (let i = 0; i < imgData.length; i += 4) {
         const r = imgData[i];
         const g = imgData[i + 1];
         const b = imgData[i + 2];
-        
-        const qr = Math.round(r / 32) * 32;
-        const qg = Math.round(g / 32) * 32;
-        const qb = Math.round(b / 32) * 32;
-        const key = `${qr},${qg},${qb}`;
-        colorBins[key] = (colorBins[key] || 0) + 1;
 
         if (r > 95 && g > 40 && b > 20 && Math.abs(r - g) > 15 && r > g && r > b) {
           humanSkinPixels++;
         }
 
-        const isGray = Math.abs(r - g) < 12 && Math.abs(g - b) < 12;
-        const isSkyBlue = b > r && b > g && b > 120;
-        const isSnowWhite = r > 210 && g > 210 && b > 210;
-        if (isGray || isSkyBlue || isSnowWhite) {
+        const isSkyBlue = b > r && b > g && b > 140;
+        if (isSkyBlue) {
           monotoneOrLandscapePixels++;
         }
       }
 
       const skinRatio = humanSkinPixels / totalPixels;
-      const monotoneRatio = monotoneOrLandscapePixels / totalPixels;
-      const uniqueColorsCount = Object.keys(colorBins).length;
+      const landscapeRatio = monotoneOrLandscapePixels / totalPixels;
 
-      const isMountainOrLandscape = (monotoneRatio > 0.65) || (uniqueColorsCount < 18 && monotoneRatio > 0.45);
-      const isHuman = skinRatio > 0.40;
-
-      if (isMountainOrLandscape || isHuman) {
+      // Relaxed sensitivity to 25% threshold
+      if (skinRatio > 0.60 || landscapeRatio > 0.75) {
         callback(false, e.target.result);
       } else {
         callback(true, e.target.result);
@@ -169,7 +129,7 @@ function previewRegisterPhoto(event) {
 
   validateIsPetImage(file, (isPet, dataUrl) => {
     if (!isPet) {
-      errorElem.textContent = "❌ Must be a pet image (no landscapes, mountains, or human pictures allowed)!";
+      errorElem.textContent = "❌ Image failed verification. Please upload a picture of your pet!";
       event.target.value = "";
       document.getElementById("regPhotoPreviewContainer").classList.add("hidden");
       pendingRegistrationData.avatar = null;
@@ -182,11 +142,25 @@ function previewRegisterPhoto(event) {
   });
 }
 
+function getAllRegisteredUserHandles() {
+  const handles = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("pawbook_user_")) {
+      try {
+        const usr = JSON.parse(localStorage.getItem(key));
+        if (usr && usr.handle) handles.push(usr.handle.toLowerCase());
+      } catch (e) {}
+    }
+  }
+  return handles;
+}
+
 function handleRegisterAccount(event) {
   event.preventDefault();
 
   if (!pendingRegistrationData.avatar) {
-    alert("Please upload a valid picture of your pet to continue!");
+    alert("Please upload a picture of your pet to continue!");
     return;
   }
 
@@ -197,6 +171,13 @@ function handleRegisterAccount(event) {
   const email = document.getElementById("regOwnerEmail").value.trim().toLowerCase();
   const password = document.getElementById("regPassword").value;
 
+  const defaultHandle = `@${name.toLowerCase().replace(/\s+/g, '')}`;
+  const existingHandles = getAllRegisteredUserHandles();
+
+  if (existingHandles.includes(defaultHandle.toLowerCase())) {
+    alert(`The default username '${defaultHandle}' is already taken. You will be able to customize your handle in profile settings!`);
+  }
+
   auth.createUserWithEmailAndPassword(email, password)
     .then((userCredential) => {
       const user = userCredential.user;
@@ -205,7 +186,7 @@ function handleRegisterAccount(event) {
         
         const newUser = {
           name: name,
-          handle: `@${name.toLowerCase().replace(/\s+/g, '')}`,
+          handle: defaultHandle,
           breed: breed,
           bio: bio,
           species: species,
@@ -220,7 +201,6 @@ function handleRegisterAccount(event) {
           boops: 0
         };
 
-        // Save profile specific to this registered email address
         localStorage.setItem(`pawbook_user_${email}`, JSON.stringify(newUser));
         localStorage.setItem("pawbook_current_user", JSON.stringify(newUser));
 
@@ -246,7 +226,6 @@ function handleSignIn(event) {
         return;
       }
 
-      // Retrieve registered profile corresponding to signed-in email
       const savedUserProfile = localStorage.getItem(`pawbook_user_${email}`);
       if (savedUserProfile) {
         localStorage.setItem("pawbook_current_user", savedUserProfile);
@@ -277,7 +256,7 @@ function previewLostPetPhoto(event) {
 
   validateIsPetImage(file, (isPet, dataUrl) => {
     if (!isPet) {
-      errorElem.textContent = "❌ Must be a pet image (no landscapes, mountains, or human pictures allowed)!";
+      errorElem.textContent = "❌ Image failed verification. Please upload a picture of the pet!";
       event.target.value = "";
       document.getElementById("lostPhotoPreviewContainer").classList.add("hidden");
       selectedLostPetPhoto = null;
@@ -290,7 +269,6 @@ function previewLostPetPhoto(event) {
   });
 }
 
-// STUART LITTLE MISSING PET PLACEHOLDER
 const initialLostPets = [
   {
     id: 1,
@@ -504,16 +482,7 @@ function sendPushNotification(title, message, icon) {
   }
 }
 
-const userNotifications = [
-  {
-    id: 1,
-    type: "friend_request",
-    senderName: "Barnaby the Cat",
-    senderAvatar: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=80&auto=format&fit=crop&q=80",
-    text: "sent you a friend request.",
-    isRead: false
-  }
-];
+const userNotifications = [];
 
 document.addEventListener("click", (event) => {
   const notifWrapper = document.querySelector(".notifications-wrapper");
@@ -531,27 +500,7 @@ document.addEventListener("click", (event) => {
   }
 });
 
-const initialPosts = [
-  {
-    id: 1,
-    author: "Barnaby the Cat",
-    handle: "@barnaby_cat",
-    species: "Cat",
-    avatar: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&auto=format&fit=crop&q=80",
-    activity: "😴 Napping",
-    timeAgo: "2 hours ago",
-    content: "Caught the sunbeam right on time today. Peak nap efficiency unlocked.",
-    mediaUrl: "https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=600&auto=format&fit=crop&q=80",
-    mediaType: "image",
-    boops: 24,
-    hasBooped: false,
-    archived: false,
-    hiddenByUsers: [],
-    comments: [
-      { author: "Sully", avatar: DEFAULT_PET_IMG, text: "Looking so cozy Barnaby!" }
-    ]
-  }
-];
+const initialPosts = [];
 
 const allRegisteredUsers = [
   { id: 1, name: "Barnaby the Cat", handle: "@barnabythecat", breed: "Tuxedo Cat", species: "Cat", city: "Norwalk", bio: "Sunbeam lover and treats expert.", gender: "Male", verified: true, image: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&auto=format&fit=crop&q=80" },
@@ -583,14 +532,12 @@ let selectedMediaType = 'image';
 let activeReportPostId = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Ensure app always starts on the Auth view
   exitToAuth();
 
   loadFromLocalStorage();
   renderPosts();
   renderMyProfileGallery();
   renderNotifications();
-  renderSuggestedPalsAlgorithm();
   checkBirthdayCelebration();
   if (window.lucide) window.lucide.createIcons();
 });
@@ -619,7 +566,7 @@ let pendingEditAvatarUrl = null;
 function openEditProfileModal() {
   const user = JSON.parse(localStorage.getItem("pawbook_current_user")) || {};
   document.getElementById("editProfileName").value = user.name || "";
-  document.getElementById("editProfileHandle").value = user.handle || "@sully";
+  document.getElementById("editProfileHandle").value = user.handle || `@${(user.name || 'pet').toLowerCase().replace(/\s+/g, '')}`;
   document.getElementById("editProfileBio").value = user.bio || "";
   document.getElementById("editProfileLinks").value = user.links || "";
   document.getElementById("editProfileGender").value = user.gender || "Male";
@@ -627,6 +574,7 @@ function openEditProfileModal() {
   document.getElementById("editProfileInfluencer").checked = user.verified || false;
   pendingEditAvatarUrl = null;
   document.getElementById("editPhotoError").textContent = "";
+  document.getElementById("handleErrorText").textContent = "";
 
   document.getElementById("editProfileModal")?.classList.remove("hidden");
   toggleProfileMenu();
@@ -643,7 +591,7 @@ function previewEditProfilePhoto(event) {
 
   validateIsPetImage(file, (isPet, dataUrl) => {
     if (!isPet) {
-      errorElem.textContent = "❌ Must be a pet image (no landscapes, mountains, or human pictures allowed)!";
+      errorElem.textContent = "❌ Image failed verification. Please upload a picture of your pet!";
       event.target.value = "";
       pendingEditAvatarUrl = null;
     } else {
@@ -655,7 +603,27 @@ function previewEditProfilePhoto(event) {
 
 function saveProfileEdits() {
   const user = JSON.parse(localStorage.getItem("pawbook_current_user")) || {};
-  user.name = document.getElementById("editProfileName").value;
+  const proposedHandle = document.getElementById("editProfileHandle").value.trim();
+  const handleErrorElem = document.getElementById("handleErrorText");
+
+  if (!proposedHandle.startsWith("@")) {
+    handleErrorElem.textContent = "Username must start with '@'";
+    return;
+  }
+
+  // Enforce Username Uniqueness
+  const allHandles = getAllRegisteredUserHandles();
+  const currentHandle = (user.handle || '').toLowerCase();
+  
+  if (proposedHandle.toLowerCase() !== currentHandle && allHandles.includes(proposedHandle.toLowerCase())) {
+    handleErrorElem.textContent = "❌ This username is already taken by another pet! Please choose a unique handle.";
+    return;
+  }
+
+  handleErrorElem.textContent = "";
+
+  user.name = document.getElementById("editProfileName").value.trim();
+  user.handle = proposedHandle;
   user.bio = document.getElementById("editProfileBio").value;
   user.links = document.getElementById("editProfileLinks").value;
   user.gender = document.getElementById("editProfileGender").value;
@@ -678,7 +646,7 @@ function saveProfileEdits() {
 }
 
 function openShareProfileModal() {
-  const user = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Sully", handle: "@sully" };
+  const user = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Pet", handle: "@pet" };
   document.getElementById("shareProfileHeadline").textContent = `Check out ${user.name} on Pawbook! 🐾`;
   document.getElementById("shareProfileLinkInput").value = `https://alfonsosanta.github.io/Pawbook/profile?user=${encodeURIComponent(user.handle)}`;
 
@@ -712,7 +680,7 @@ function submitPostReport() {
   if (!activeReportPostId) return;
 
   const post = initialPosts.find(p => p.id === activeReportPostId);
-  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Sully" };
+  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Pet" };
 
   if (post) {
     if (!post.hiddenByUsers) post.hiddenByUsers = [];
@@ -729,7 +697,6 @@ function submitPostReport() {
         text: `your post was removed due to guidelines.`,
         isRead: false
       });
-      sendPushNotification("Pawbook Safety Notice", "Your post was removed due to guidelines.", DEFAULT_PET_IMG);
     }
 
     saveToLocalStorage();
@@ -747,7 +714,7 @@ function addComment(postId) {
   const text = inputElem.value.trim();
   if (!text) return;
 
-  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Sully", avatar: DEFAULT_PET_IMG };
+  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Pet", avatar: DEFAULT_PET_IMG };
   const post = initialPosts.find(p => p.id === postId);
 
   if (post) {
@@ -758,64 +725,29 @@ function addComment(postId) {
       text: text
     });
 
-    if (post.author !== currentUser.name) {
-      userNotifications.unshift({
-        id: Date.now(),
-        type: "comment",
-        senderName: currentUser.name,
-        senderAvatar: currentUser.avatar || DEFAULT_PET_IMG,
-        text: `commented on your pawst: "${text}"`,
-        isRead: false
-      });
-      sendPushNotification("New Comment! 🐾", `${currentUser.name} commented on your pawst.`, currentUser.avatar);
-    }
-
     inputElem.value = "";
     saveToLocalStorage();
     renderPosts();
     renderMyProfileGallery();
-    renderNotifications();
   }
 }
 
 function sendNoseBoop(petName, buttonElem) {
-  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Sully" };
-  
   if (buttonElem) {
     buttonElem.classList.add("boop-animation");
     buttonElem.textContent = "Booped! 🐾";
     setTimeout(() => buttonElem.classList.remove("boop-animation"), 400);
   }
-
-  userNotifications.unshift({
-    id: Date.now(),
-    type: "boop",
-    senderName: currentUser.name,
-    senderAvatar: currentUser.avatar || DEFAULT_PET_IMG,
-    text: `gave you a nose boop! 🐾🐽`,
-    isRead: false
-  });
-
-  renderNotifications();
-  sendPushNotification("Nose Boop Alert! 🐾", `${currentUser.name} gave ${petName} a nose boop!`, currentUser.avatar);
+  // Nose boops send to receiving target only (no self-notifications)
 }
 
 function sendFriendRequest(buttonElement, petName) {
   const card = buttonElement.closest('.pal-item');
   if (!card) return;
 
-  playCricketChirpSound();
-
-  const envelope = document.createElement("div");
-  envelope.className = "flying-envelope";
-  envelope.innerHTML = "✉️";
-  card.appendChild(envelope);
-
   buttonElement.textContent = "Requested ✓ (Undo)";
   buttonElement.classList.add("btn-danger-outline");
   buttonElement.setAttribute("onclick", `undoFriendRequest(this, '${petName}')`);
-
-  setTimeout(() => envelope.remove(), 800);
 }
 
 function undoFriendRequest(buttonElement, petName) {
@@ -837,6 +769,7 @@ function acceptFriendRequest(petName, buttonElement) {
     myPackList.push(user);
     updatePalsCount(1);
     saveToLocalStorage();
+    renderPosts(); // Refresh feed to display friend's posts
   }
 
   const notifIndex = userNotifications.findIndex(n => n.senderName.toLowerCase().includes(petName.toLowerCase()));
@@ -868,6 +801,7 @@ function removePetPal(petName) {
       updatePalsCount(-1);
       saveToLocalStorage();
       renderMyPack();
+      renderPosts(); // Instantly strip removed friend's posts from feed
       closePetProfileModal();
     }
   }
@@ -1015,7 +949,7 @@ function handleMediaSelect(event) {
   } else {
     validateIsPetImage(file, (isPet, dataUrl) => {
       if (!isPet) {
-        errorElem.textContent = "❌ Must be a pet image (no landscapes, mountains, or human pictures allowed)!";
+        errorElem.textContent = "❌ Image failed verification. Please upload a picture of your pet!";
         event.target.value = "";
         selectedMediaUrl = null;
         document.getElementById("mediaPreviewName").textContent = "";
@@ -1036,7 +970,7 @@ function publishPost() {
 
   if (!caption && !selectedMediaUrl) return;
 
-  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Sully", avatar: DEFAULT_PET_IMG };
+  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Pet", avatar: DEFAULT_PET_IMG };
 
   currentUser.status = activitySelect.value;
   document.getElementById("profileStatusSelect").value = activitySelect.value;
@@ -1045,7 +979,7 @@ function publishPost() {
   const newPost = {
     id: Date.now(),
     author: currentUser.name,
-    handle: `@${currentUser.name.toLowerCase().replace(/\s+/g, '')}`,
+    handle: currentUser.handle || `@${currentUser.name.toLowerCase().replace(/\s+/g, '')}`,
     species: currentUser.species || "Dog",
     avatar: currentUser.avatar || DEFAULT_PET_IMG,
     activity: activitySelect.value,
@@ -1059,21 +993,6 @@ function publishPost() {
     hiddenByUsers: [],
     comments: []
   };
-
-  const mentions = caption.match(/@\w+/g);
-  if (mentions) {
-    mentions.forEach(mention => {
-      userNotifications.unshift({
-        id: Date.now(),
-        type: "mention",
-        senderName: currentUser.name,
-        senderAvatar: currentUser.avatar || DEFAULT_PET_IMG,
-        text: `tagged you in a pawst: "${caption.slice(0, 30)}..."`,
-        isRead: false
-      });
-      sendPushNotification("You were tagged! 🐾", `${currentUser.name} tagged ${mention} in a new pawst.`, currentUser.avatar);
-    });
-  }
 
   initialPosts.unshift(newPost);
   captionInput.value = "";
@@ -1189,7 +1108,7 @@ function renderMyProfileGallery() {
   const container = document.getElementById("myProfileGalleryContainer");
   if (!container) return;
 
-  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Sully" };
+  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Pet" };
   const myPosts = initialPosts.filter(p => p.author.toLowerCase() === currentUser.name.toLowerCase());
 
   container.innerHTML = myPosts.length > 0 
@@ -1243,18 +1162,42 @@ function markNotificationsRead() {
   document.getElementById("notifDropdown")?.classList.add("hidden");
 }
 
+// STRICT FRIEND/PACK-ONLY FEED RENDER
 function renderPosts() {
   const container = document.getElementById("postsFeed");
   if (!container) return;
 
-  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Sully" };
-  const activePosts = initialPosts.filter(p => !p.archived && (!p.hiddenByUsers || !p.hiddenByUsers.includes(currentUser.name)));
-  
+  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Pet" };
+  const packFriendNames = myPackList.map(p => p.name.toLowerCase());
+
+  // Show only posts created by current user or confirmed pack friends
+  const activePosts = initialPosts.filter(p => {
+    const isAuthor = p.author.toLowerCase() === currentUser.name.toLowerCase();
+    const isPackFriend = packFriendNames.includes(p.author.toLowerCase());
+    const isNotArchived = !p.archived;
+    const isNotHidden = !p.hiddenByUsers || !p.hiddenByUsers.includes(currentUser.name);
+
+    return (isAuthor || isPackFriend) && isNotArchived && isNotHidden;
+  });
+
   const filtered = activeFilter === 'All' 
     ? activePosts 
     : activePosts.filter(p => p.species.toLowerCase() === activeFilter.toLowerCase());
 
-  container.innerHTML = filtered.map(post => renderSinglePostHTML(post, false)).join("");
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="card" style="text-align: center; padding: 36px 20px; line-height: 1.6;">
+        <img src="https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Party%20popper/3D/party_popper_3d.png" style="width: 48px; height: 48px; margin-bottom: 8px;">
+        <h3 style="font-family: 'Fredoka', cursive; font-size: 20px; margin-bottom: 6px;">Thank you for joining Pawbook! 🐾</h3>
+        <p style="color: var(--text-muted); font-size: 13.5px; max-width: 420px; margin: 0 auto 16px auto;">
+          We hope you enjoy showing off the silly things your pet does! Add pals to your pack or share your first post to fill your feed.
+        </p>
+      </div>
+    `;
+  } else {
+    container.innerHTML = filtered.map(post => renderSinglePostHTML(post, false)).join("");
+  }
+
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -1484,31 +1427,6 @@ function copyShareLink() {
   alert("Link copied to clipboard! Share it with friends to invite them to Pawbook 🐾");
 }
 
-function renderSuggestedPalsAlgorithm() {
-  const container = document.getElementById("suggestedPalsList");
-  if (!container) return;
-
-  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { species: "Dog", city: "Norwalk" };
-
-  const scored = allRegisteredUsers.map(user => {
-    let score = 0;
-    if (user.city.toLowerCase() === (currentUser.city || "norwalk").toLowerCase()) score += 50;
-    if (user.species.toLowerCase() === (currentUser.species || "dog").toLowerCase()) score += 30;
-    return { ...user, score };
-  }).sort((a, b) => b.score - a.score);
-
-  container.innerHTML = scored.slice(0, 3).map(pal => `
-    <div class="pal-item">
-      <img src="${pal.image}" alt="${pal.name}" onerror="handleImageError(this)">
-      <div class="pal-info">
-        <strong>${pal.name}</strong>
-        <span>${pal.breed} • ${pal.city}</span>
-      </div>
-      <button class="btn btn-outline btn-sm add-pal-btn" onclick="sendFriendRequest(this, '${pal.name}')">+ Add</button>
-    </div>
-  `).join("");
-}
-
 function enterApp() {
   document.getElementById("authView")?.classList.add("hidden");
   document.getElementById("appView")?.classList.remove("hidden");
@@ -1542,7 +1460,7 @@ function switchAuthForm(formType) {
 }
 
 function updateProfileStatus(newStatus) {
-  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Sully" };
+  const currentUser = JSON.parse(localStorage.getItem("pawbook_current_user")) || { name: "Pet" };
   currentUser.status = newStatus;
   localStorage.setItem("pawbook_current_user", JSON.stringify(currentUser));
 }

@@ -67,8 +67,7 @@ body.dark-mode .search-item:hover {
 }
 
 body.dark-mode .playdate-header-card,
-body.dark-mode .alert-header-card,
-body.dark-mode .active-users-card {
+body.dark-mode .alert-header-card {
   background: linear-gradient(135deg, #1e293b, #334155) !important;
   border-color: #475569 !important;
 }
@@ -514,11 +513,12 @@ body {
   margin-left: 2px;
 }
 
+/* 2-COLUMN LAYOUT: Sidebar + Feed (Right Panel Removed) */
 .main-content {
   display: grid;
-  grid-template-columns: 260px 1fr 280px;
+  grid-template-columns: 260px 1fr;
   gap: 24px;
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 24px auto;
   padding: 0 16px;
 }
@@ -1005,49 +1005,6 @@ body {
   margin-bottom: 12px;
 }
 
-.suggestions-card, .active-users-card {
-  margin-bottom: 16px;
-}
-
-@keyframes rotateEarth {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.earth-3d-icon {
-  animation: rotateEarth 12s linear infinite;
-}
-
-.suggestions-card h3 {
-  font-size: 15px;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pal-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  position: relative;
-}
-
-.pal-item img {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.pal-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  font-size: 12px;
-}
-
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1134,19 +1091,6 @@ body {
 
 .boop-animation {
   animation: boopBounce 0.4s ease-in-out;
-}
-
-@keyframes flyEnvelope {
-  0% { transform: scale(0.5) translateY(0); opacity: 1; }
-  100% { transform: scale(1.5) translateY(-50px) translateX(40px); opacity: 0; }
-}
-
-.flying-envelope {
-  position: absolute;
-  font-size: 20px;
-  animation: flyEnvelope 0.8s ease-out forwards;
-  pointer-events: none;
-  z-index: 999;
 }
 
 .password-input-container {
